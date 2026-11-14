@@ -47,13 +47,14 @@ PLAY_APP_ID = "com.dts.freefireth"
 UNITY_VERSION = "2018.4.12f1"
 USER_AGENT = "UnityPlayer/2018.4.12f1 (UnityWebRequest/1.0, libcurl/8.5.0-DEV)"
 
-REQUEST_TIMEOUT = _env_float("REQUEST_TIMEOUT", 20.0)
-LOGIN_TIMEOUT = _env_float("LOGIN_TIMEOUT", 25.0)
-UPSTREAM_RETRIES = _env_int("UPSTREAM_RETRIES", 2)
+# LOWERED TIMEOUTS FOR VERCEL (10s max limit)
+REQUEST_TIMEOUT = _env_float("REQUEST_TIMEOUT", 3.5)
+LOGIN_TIMEOUT = _env_float("LOGIN_TIMEOUT", 4.0)
+UPSTREAM_RETRIES = _env_int("UPSTREAM_RETRIES", 1)
 RETRY_BACKOFF = _env_float("RETRY_BACKOFF", 0.3)
 
 LIVE_CONFIG_TTL = _env_int("LIVE_CONFIG_TTL", 1800)
-LIVE_CONFIG_TIMEOUT = _env_float("LIVE_CONFIG_TIMEOUT", 15.0)
+LIVE_CONFIG_TIMEOUT = _env_float("LIVE_CONFIG_TIMEOUT", 3.0)
 
 TOKEN_CACHE_TTL = _env_int("TOKEN_CACHE_TTL", 300)
 TOKEN_CACHE_MAX = _env_int("TOKEN_CACHE_MAX", 5000)
@@ -635,7 +636,7 @@ def major_login(open_id: str, access_token: str, platform: int, region: str) -> 
         futures = [pool.submit(worker, p) for p in remaining]
         for f in futures:
             try:
-                f.result(timeout=LOGIN_TIMEOUT + 5)
+                f.result(timeout=LOGIN_TIMEOUT + 2)
             except Exception:
                 pass
 
@@ -705,7 +706,7 @@ def _cached_or_fetch(cache_key: str, fetcher):
                 _inflight.pop(cache_key, None)
             event.set()
 
-    event.wait(timeout=LOGIN_TIMEOUT + 10)
+    event.wait(timeout=LOGIN_TIMEOUT + 5)
     cached = _token_cache.get(cache_key)
     if cached is not None:
         return cached
@@ -956,8 +957,7 @@ def _handle_uncaught(e):
     return fail("internal_error", "internal server error", 500)
 
 
-threading.Thread(target=live_config.get, daemon=True).start()
-
+# REMOVED DAEMON THREAD HERE FOR VERCEL COMPATIBILITY
 
 if __name__ == "__main__":
     log.info("Free Fire JWT Generator starting")
